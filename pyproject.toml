@@ -3,7 +3,6 @@ name = "traffic-quality-checker"
 version = "0.1.0"
 description = "Traffic quality checker for affiliate programs"
 authors = ["Nalivator3000"]
-packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
