@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_api_key
-from app.crud import patch_lead, upsert_leads_json
+from app.crud import delete_lead, patch_lead, upsert_leads_json
 from app.db import get_db
 
 router = APIRouter(prefix="/leads", tags=["leads"])
@@ -85,3 +85,19 @@ async def update_lead(
             detail=f"Lead {id_custom} not found",
         )
     return {"status": "ok", "id_custom": id_custom}
+
+
+@router.delete("/{id_custom}", status_code=status.HTTP_200_OK)
+async def remove_lead(
+    id_custom: int,
+    session: AsyncSession = Depends(get_db),
+    _key: str = Depends(require_api_key),
+) -> dict[str, Any]:
+    """Delete a single lead by id_custom."""
+    found = await delete_lead(session, id_custom)
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lead {id_custom} not found",
+        )
+    return {"status": "deleted", "id_custom": id_custom}

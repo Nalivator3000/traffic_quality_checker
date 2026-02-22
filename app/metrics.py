@@ -138,7 +138,7 @@ def daily_breakdown(
                 "bought_out": bought_out,
                 "trash": trash,
                 "approve_%": _pct(approved, total),
-                "buyout_%": _pct(bought_out, total),
+                "buyout_%": _pct(bought_out, approved),  # выкуп от апрувов
                 "trash_%": _pct(trash, total),
             }
         )

@@ -96,6 +96,16 @@ async def patch_lead(
     return True
 
 
+async def delete_lead(session: AsyncSession, id_custom: int) -> bool:
+    """Delete a single lead. Returns True if found and deleted."""
+    row = await session.get(Lead, id_custom)
+    if row is None:
+        return False
+    await session.delete(row)
+    await session.commit()
+    return True
+
+
 async def fetch_leads_df(
     session: AsyncSession,
     webmaster: str | None = None,
