@@ -146,8 +146,8 @@ def detect_issues(
         issues.append(f"Высокий треш: {trash_pct:.1f}% (норма ≤ 20%)")
     if approve_pct < 30:
         issues.append(f"Низкий апрув: {approve_pct:.1f}% (норма ≥ 30%)")
-    if buyout_pct < 40:
-        issues.append(f"Низкий выкуп: {buyout_pct:.1f}% (норма ≥ 40%)")
+    if buyout_pct < 65:
+        issues.append(f"Низкий выкуп: {buyout_pct:.1f}% (норма ≥ 65%)")
     if score_pct is not None and score_pct < 70:
         issues.append(f"Слабый 8-дневный скор: {score_pct:.1f}% (норма ≥ 70%)")
     return issues
