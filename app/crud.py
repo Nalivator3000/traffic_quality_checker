@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Lead, WebmasterReport
+from app.models import Lead, WebmasterReport, WebmasterStatus
 
 
 async def upsert_leads(session: AsyncSession, df: pd.DataFrame) -> int:
@@ -224,5 +224,63 @@ async def get_reports(
     q = select(WebmasterReport).order_by(WebmasterReport.created_at.desc()).limit(limit)
     if webmaster is not None:
         q = q.where(WebmasterReport.webmaster == webmaster)
+    result = await session.execute(q)
+    return list(result.scalars().all())
+
+
+async def upsert_webmaster_status(session: AsyncSession, data: dict) -> None:
+    """
+    Insert or update the current-status row for one webmaster.
+    One row per webmaster — always reflects the latest analysis run.
+    """
+    issues_json = json.dumps(data.get("issues", []), ensure_ascii=False)
+    stmt = pg_insert(WebmasterStatus).values(
+        webmaster=data["webmaster"],
+        updated_at=func.now(),
+        period_days=data["period_days"],
+        leads_total=data["leads_total"],
+        approved=data["approved"],
+        bought_out=data["bought_out"],
+        trash=data["trash"],
+        approve_pct=data["approve_pct"],
+        avg_approve_pct=data["avg_approve_pct"],
+        adj_buyout_pct=data["adj_buyout_pct"],
+        trash_pct=data["trash_pct"],
+        avg_trash_pct=data["avg_trash_pct"],
+        score_pct=data.get("score_pct"),
+        issues=issues_json,
+        ok=len(data.get("issues", [])) == 0,
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["webmaster"],
+        set_={
+            "updated_at": func.now(),
+            "period_days": stmt.excluded.period_days,
+            "leads_total": stmt.excluded.leads_total,
+            "approved": stmt.excluded.approved,
+            "bought_out": stmt.excluded.bought_out,
+            "trash": stmt.excluded.trash,
+            "approve_pct": stmt.excluded.approve_pct,
+            "avg_approve_pct": stmt.excluded.avg_approve_pct,
+            "adj_buyout_pct": stmt.excluded.adj_buyout_pct,
+            "trash_pct": stmt.excluded.trash_pct,
+            "avg_trash_pct": stmt.excluded.avg_trash_pct,
+            "score_pct": stmt.excluded.score_pct,
+            "issues": stmt.excluded.issues,
+            "ok": stmt.excluded.ok,
+        },
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+
+async def get_webmaster_status(
+    session: AsyncSession,
+    webmaster: str | None = None,
+) -> list[WebmasterStatus]:
+    """Fetch current status for all (or one) webmaster."""
+    q = select(WebmasterStatus).order_by(WebmasterStatus.ok.asc(), WebmasterStatus.webmaster.asc())
+    if webmaster is not None:
+        q = q.where(WebmasterStatus.webmaster == webmaster)
     result = await session.execute(q)
     return list(result.scalars().all())

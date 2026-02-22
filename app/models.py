@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, Float, Integer, String, Text, func, text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Float, Integer, String, Text, func, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -42,3 +42,30 @@ class WebmasterReport(Base):
     trash_pct: Mapped[float] = mapped_column(Float, nullable=False)
     score_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
     issues: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+
+
+class WebmasterStatus(Base):
+    """
+    Current status snapshot — one row per webmaster, upserted on every cron run.
+    Designed for easy consumption by external tools (Telegram bot, Superset, etc.)
+    """
+
+    __tablename__ = "webmaster_status"
+
+    webmaster: Mapped[str] = mapped_column(String(255), primary_key=True)
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    period_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    leads_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    approved: Mapped[int] = mapped_column(Integer, nullable=False)
+    bought_out: Mapped[int] = mapped_column(Integer, nullable=False)
+    trash: Mapped[int] = mapped_column(Integer, nullable=False)
+    approve_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    avg_approve_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    adj_buyout_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    trash_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    avg_trash_pct: Mapped[float] = mapped_column(Float, nullable=False)
+    score_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    issues: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'[]'"))
+    ok: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))

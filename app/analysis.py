@@ -10,7 +10,7 @@ import datetime
 import pandas as pd
 
 from app import metrics, scoring
-from app.crud import detect_issues, save_report
+from app.crud import detect_issues, save_report, upsert_webmaster_status
 from app.scoring import calc_adjusted_buyout
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,9 +97,10 @@ async def run_and_save(
     period_days: int = 30,
     analysis_date: datetime.date | None = None,
 ) -> list[dict]:
-    """Analyse all webmasters, persist each report, return list of result dicts."""
+    """Analyse all webmasters, persist report history + upsert current status."""
     results = analyse_all(df, period_days=period_days, analysis_date=analysis_date)
     for r in results:
+        # Append to report history
         saved = await save_report(
             session,
             {
@@ -110,7 +111,7 @@ async def run_and_save(
                 "bought_out": r["bought_out"],
                 "trash": r["trash"],
                 "approve_pct": r["approve_pct"],
-                "buyout_pct": r["adj_buyout_pct"],  # store adjusted in buyout_pct field
+                "buyout_pct": r["adj_buyout_pct"],
                 "trash_pct": r["trash_pct"],
                 "score_pct": r["score_pct"],
                 "issues": r["issues"],
@@ -118,4 +119,8 @@ async def run_and_save(
         )
         r["id"] = saved.id
         r["created_at"] = saved.created_at.isoformat()
+
+        # Upsert current-status snapshot (for TG bot / Superset)
+        await upsert_webmaster_status(session, r)
+
     return results
