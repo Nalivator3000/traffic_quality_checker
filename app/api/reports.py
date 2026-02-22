@@ -13,9 +13,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import metrics, scoring
+from app.analysis import run_and_save
 from app.api.deps import require_api_key
-from app.crud import detect_issues, fetch_leads_df, get_reports, save_report
+from app.crud import fetch_leads_df, get_reports
 from app.db import get_db
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -32,7 +32,7 @@ def _report_to_dict(report) -> dict[str, Any]:
         "bought_out": report.bought_out,
         "trash": report.trash,
         "approve_pct": report.approve_pct,
-        "buyout_pct": report.buyout_pct,
+        "adj_buyout_pct": report.buyout_pct,  # stored as buyout_pct in DB
         "trash_pct": report.trash_pct,
         "score_pct": report.score_pct,
         "issues": json.loads(report.issues),
@@ -50,6 +50,8 @@ async def run_reports(
     """
     Run analysis for all webmasters (or one) and save results to DB.
     Returns the list of saved reports with highlighted issues.
+
+    `adj_buyout_pct` = adjusted buyout projecting young cohorts (<8 days) to maturity.
     """
     since = datetime.date.today() - datetime.timedelta(days=days)
     df = await fetch_leads_df(session, webmaster=webmaster, since=since)
@@ -57,41 +59,8 @@ async def run_reports(
     if df.empty:
         return []
 
-    webmasters = df["webmaster"].unique().tolist()
-    saved = []
-
-    for wm in webmasters:
-        m = metrics.calc_webmaster_metrics(df, wm)
-
-        # Try to get 8-day score
-        score_pct: float | None = None
-        since_score = datetime.date.today() - datetime.timedelta(days=8)
-        df_score = df[(df["webmaster"] == wm) & (df["date"] >= since_score)]
-        if not df_score.empty:
-            result = scoring.calc_score(df_score, wm)
-            score_pct = result.score_pct
-
-        issues = detect_issues(m.approve_pct, m.buyout_pct, m.trash_pct, score_pct)
-
-        report = await save_report(
-            session,
-            {
-                "webmaster": wm,
-                "period_days": days,
-                "leads_total": m.total,
-                "approved": m.approved,
-                "bought_out": m.bought_out,
-                "trash": m.trash,
-                "approve_pct": m.approve_pct,
-                "buyout_pct": m.buyout_pct,
-                "trash_pct": m.trash_pct,
-                "score_pct": score_pct,
-                "issues": issues,
-            },
-        )
-        saved.append(_report_to_dict(report))
-
-    return saved
+    results = await run_and_save(df, session, period_days=days)
+    return results
 
 
 @router.get("", status_code=status.HTTP_200_OK)

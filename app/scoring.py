@@ -142,6 +142,60 @@ def calc_score(
     )
 
 
+def calc_adjusted_buyout(
+    df: pd.DataFrame,
+    webmaster: str,
+    analysis_date: datetime.date | None = None,
+    period_days: int = 30,
+) -> float:
+    """
+    Adjusted buyout rate: projects young cohorts to their expected mature rate.
+
+    For each cohort of age_d days:
+      - age_d >= 8  → use actual rate as-is   (coef = 1.0)
+      - age_d <  8  → adjusted = min(actual × (0.65 / benchmark_d), 1.0)
+
+    Returns weighted average adjusted rate across all approved leads, as %.
+    """
+    if analysis_date is None:
+        analysis_date = datetime.date.today()
+
+    since = analysis_date - datetime.timedelta(days=period_days)
+    wdf = df[(df["webmaster"] == webmaster) & (df["date"] >= since)].copy()
+
+    if wdf.empty:
+        return 0.0
+
+    total_approved = 0
+    total_weighted = 0.0
+
+    for day, group in wdf.groupby("date"):
+        age_days = (analysis_date - day).days
+        if age_days < 1:
+            age_days = 1
+
+        approved = int(group["status"].isin(APPROVE_STATUSES).sum())
+        bought_out = int(group["status"].isin(BUYOUT_STATUSES).sum())
+        if approved == 0:
+            continue
+
+        actual_rate = bought_out / approved
+
+        if age_days >= SCORING_WINDOW_DAYS:
+            adjusted_rate = actual_rate
+        else:
+            benchmark = BUYOUT_BENCHMARK[age_days]
+            adjusted_rate = min(actual_rate * (0.65 / benchmark), 1.0)
+
+        total_weighted += approved * adjusted_rate
+        total_approved += approved
+
+    if total_approved == 0:
+        return 0.0
+
+    return round(total_weighted / total_approved * 100, 2)
+
+
 def cohorts_to_dataframe(result: ScoringResult) -> pd.DataFrame:
     """Convert a ScoringResult's cohorts to a DataFrame for reporting."""
     rows = [

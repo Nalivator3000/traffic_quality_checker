@@ -146,20 +146,51 @@ async def fetch_leads_df(
 
 def detect_issues(
     approve_pct: float,
-    buyout_pct: float,
+    adj_buyout_pct: float,
     trash_pct: float,
     score_pct: float | None,
+    avg_approve_pct: float = 0.0,
+    avg_trash_pct: float = 0.0,
+    approve_target: float = 30.0,
+    buyout_target: float = 65.0,
+    trash_target: float = 20.0,
+    score_target: float = 70.0,
 ) -> list[str]:
-    """Return a list of human-readable problem descriptions."""
+    """
+    Return human-readable problem descriptions for one webmaster.
+
+    Approve / trash: flagged if below/above the fixed target OR worse than average.
+    Adjusted buyout: flagged if below buyout_target (65%).
+    8-day score: flagged if below score_target (70%).
+    """
     issues = []
-    if trash_pct > 20:
-        issues.append(f"Высокий треш: {trash_pct:.1f}% (норма ≤ 20%)")
-    if approve_pct < 30:
-        issues.append(f"Низкий апрув: {approve_pct:.1f}% (норма ≥ 30%)")
-    if buyout_pct < 65:
-        issues.append(f"Низкий выкуп: {buyout_pct:.1f}% (норма ≥ 65%)")
-    if score_pct is not None and score_pct < 70:
-        issues.append(f"Слабый 8-дневный скор: {score_pct:.1f}% (норма ≥ 70%)")
+
+    # Approve
+    approve_threshold = max(approve_target, avg_approve_pct)
+    if approve_pct < approve_threshold:
+        issues.append(
+            f"Низкий апрув: {approve_pct:.1f}%"
+            f" (норма ≥ {approve_target:.0f}%, среднее {avg_approve_pct:.1f}%)"
+        )
+
+    # Adjusted buyout
+    if adj_buyout_pct < buyout_target:
+        issues.append(
+            f"Низкий скор. выкуп: {adj_buyout_pct:.1f}% (норма ≥ {buyout_target:.0f}%)"
+        )
+
+    # Trash
+    trash_threshold = min(trash_target, avg_trash_pct) if avg_trash_pct > 0 else trash_target
+    if trash_pct > trash_threshold:
+        issues.append(
+            f"Высокий треш: {trash_pct:.1f}%"
+            f" (норма ≤ {trash_target:.0f}%, среднее {avg_trash_pct:.1f}%)"
+        )
+
+    # 8-day score
+    if score_pct is not None and score_pct < score_target:
+        issues.append(f"Слабый 8-дневный скор: {score_pct:.1f}% (норма ≥ {score_target:.0f}%)")
+
     return issues
 
 
