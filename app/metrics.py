@@ -47,7 +47,7 @@ def calc_webmaster_metrics(df: pd.DataFrame, webmaster: str) -> WebmasterMetrics
         bought_out=bought_out,
         trash=trash,
         approve_pct=_pct(approved, total),
-        buyout_pct=_pct(bought_out, total),
+        buyout_pct=_pct(bought_out, approved),  # выкуп от апрувов
         trash_pct=_pct(trash, total),
     )
 
@@ -102,7 +102,7 @@ def summary_last_n(df: pd.DataFrame, webmaster: str, n: int = 100) -> WebmasterM
         bought_out=bought_out,
         trash=trash,
         approve_pct=_pct(approved, total),
-        buyout_pct=_pct(bought_out, total),
+        buyout_pct=_pct(bought_out, approved),  # выкуп от апрувов
         trash_pct=_pct(trash, total),
     )
 
