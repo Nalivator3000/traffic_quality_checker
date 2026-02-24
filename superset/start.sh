@@ -106,6 +106,7 @@ exec gunicorn \
     --workers 1 \
     --threads 4 \
     --worker-class gthread \
+    --preload \
     --timeout 120 \
     --max-requests 100 \
     --max-requests-jitter 20 \
