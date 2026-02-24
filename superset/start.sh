@@ -27,7 +27,7 @@ echo ""
 echo "--- Creating superset_config.py ---"
 mkdir -p /app/pythonpath
 
-python3 << 'PYEOF'
+/app/.venv/bin/python3 << 'PYEOF'
 import os, sys
 
 db_url = os.environ['DATABASE_URL']
@@ -63,7 +63,7 @@ PYEOF
 
 echo ""
 echo "--- Testing DB Connection ---"
-python3 << 'PYEOF'
+/app/.venv/bin/python3 << 'PYEOF'
 import os
 from sqlalchemy import create_engine, text
 
