@@ -41,23 +41,31 @@ if db_url.startswith('postgres://'):
 masked = db_url.split('@')[-1] if '@' in db_url else db_url
 print(f"DB URL host/db: {masked}")
 
-# Create dedicated 'superset' schema so alembic_version stays separate from our app's
-print("Creating 'superset' schema if not exists...")
+# Move our FastAPI app's alembic entries out of alembic_version so Superset
+# can run its own migrations cleanly. Our app now uses tqc_alembic_version.
+print("Isolating app alembic versions from Superset's alembic_version...")
+our_revs = ['b589e261f68f', 'a1c3e9f72b44', 'c7f2a1d8e345']
 engine = create_engine(db_url)
 with engine.begin() as conn:
-    conn.execute(text("CREATE SCHEMA IF NOT EXISTS superset"))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS tqc_alembic_version (
+            version_num VARCHAR(32) NOT NULL,
+            CONSTRAINT tqc_alembic_version_pkc PRIMARY KEY (version_num)
+        )
+    """))
+    for rev in our_revs:
+        conn.execute(text(
+            "INSERT INTO tqc_alembic_version (version_num) VALUES (:r) ON CONFLICT DO NOTHING"
+        ), {"r": rev})
+        conn.execute(text(
+            "DELETE FROM alembic_version WHERE version_num = :r"
+        ), {"r": rev})
 engine.dispose()
-print("Schema ready.")
+print("Version table isolation done.")
 
 config = f"""import os
 
 SQLALCHEMY_DATABASE_URI = "{db_url}"
-
-# Use dedicated schema so Superset's alembic_version doesn't collide with the app's
-SQLALCHEMY_ENGINE_OPTIONS = {{
-    "connect_args": {{"options": "-csearch_path=superset"}}
-}}
-
 SECRET_KEY = "{sk}"
 
 # Disable CSRF for API
