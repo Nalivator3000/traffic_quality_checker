@@ -29,6 +29,7 @@ mkdir -p /app/pythonpath
 
 /app/.venv/bin/python3 << 'PYEOF'
 import os, sys
+from sqlalchemy import create_engine, text
 
 db_url = os.environ['DATABASE_URL']
 sk = os.environ['SUPERSET_SECRET_KEY']
@@ -40,9 +41,24 @@ if db_url.startswith('postgres://'):
 masked = db_url.split('@')[-1] if '@' in db_url else db_url
 print(f"DB URL host/db: {masked}")
 
+# Create dedicated 'superset' schema so alembic_version stays separate from our app's
+print("Creating 'superset' schema if not exists...")
+engine = create_engine(db_url)
+with engine.connect() as conn:
+    conn.execute(text("CREATE SCHEMA IF NOT EXISTS superset"))
+    conn.commit()
+engine.dispose()
+print("Schema ready.")
+
 config = f"""import os
 
 SQLALCHEMY_DATABASE_URI = "{db_url}"
+
+# Use dedicated schema so Superset's alembic_version doesn't collide with the app's
+SQLALCHEMY_ENGINE_OPTIONS = {{
+    "connect_args": {{"options": "-csearch_path=superset,public"}}
+}}
+
 SECRET_KEY = "{sk}"
 
 # Disable CSRF for API
