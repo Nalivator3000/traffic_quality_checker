@@ -28,8 +28,7 @@ echo "--- Creating superset_config.py ---"
 mkdir -p /app/pythonpath
 
 /app/.venv/bin/python3 << 'PYEOF'
-import os, sys
-from sqlalchemy import create_engine, text
+import os, psycopg2, urllib.parse
 
 db_url = os.environ['DATABASE_URL']
 sk = os.environ['SUPERSET_SECRET_KEY']
@@ -38,47 +37,46 @@ sk = os.environ['SUPERSET_SECRET_KEY']
 if db_url.startswith('postgres://'):
     db_url = 'postgresql://' + db_url[len('postgres://'):]
 
-masked = db_url.split('@')[-1] if '@' in db_url else db_url
-print(f"DB URL host/db: {masked}")
+p = urllib.parse.urlparse(db_url)
+host = p.hostname
+port = p.port or 5432
+user = p.username
+password = p.password
+main_db = p.path.lstrip('/')
 
-# Move our FastAPI app's alembic entries out of alembic_version so Superset
-# can run its own migrations cleanly. Our app now uses tqc_alembic_version.
-print("Isolating app alembic versions from Superset's alembic_version...")
-our_revs = ['b589e261f68f', 'a1c3e9f72b44', 'c7f2a1d8e345']
-engine = create_engine(db_url)
-with engine.begin() as conn:
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS tqc_alembic_version (
-            version_num VARCHAR(32) NOT NULL,
-            CONSTRAINT tqc_alembic_version_pkc PRIMARY KEY (version_num)
-        )
-    """))
-    for rev in our_revs:
-        conn.execute(text(
-            "INSERT INTO tqc_alembic_version (version_num) VALUES (:r) ON CONFLICT DO NOTHING"
-        ), {"r": rev})
-        conn.execute(text(
-            "DELETE FROM alembic_version WHERE version_num = :r"
-        ), {"r": rev})
-engine.dispose()
-print("Version table isolation done.")
+print(f"DB host: {host}:{port}/{main_db}")
+
+# Create a dedicated 'superset_db' database so Superset's alembic_version
+# is fully isolated from our FastAPI app's database. No shared tables at all.
+print("Ensuring 'superset_db' database exists...")
+conn = psycopg2.connect(host=host, port=port, user=user, password=password, dbname=main_db)
+conn.autocommit = True  # CREATE DATABASE requires autocommit
+cur = conn.cursor()
+cur.execute("SELECT 1 FROM pg_database WHERE datname = 'superset_db'")
+if not cur.fetchone():
+    cur.execute("CREATE DATABASE superset_db")
+    print("Created 'superset_db'.")
+else:
+    print("'superset_db' already exists.")
+cur.close()
+conn.close()
+
+# Build Superset-specific URL (same server, dedicated database)
+superset_db_url = urllib.parse.urlunparse(p._replace(path='/superset_db', query=''))
+print(f"Superset DB URL: {host}:{port}/superset_db")
 
 config = f"""import os
 
-SQLALCHEMY_DATABASE_URI = "{db_url}"
+SQLALCHEMY_DATABASE_URI = "{superset_db_url}"
 SECRET_KEY = "{sk}"
 
-# Disable CSRF for API
 WTF_CSRF_ENABLED = False
-
-# Allow all hosts
 ENABLE_CORS = True
 HTTP_HEADERS = {{}}
 """
 
 with open('/app/pythonpath/superset_config.py', 'w') as f:
     f.write(config)
-
 print("superset_config.py written OK")
 PYEOF
 
