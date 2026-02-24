@@ -33,11 +33,9 @@ import os, sys
 db_url = os.environ['DATABASE_URL']
 sk = os.environ['SUPERSET_SECRET_KEY']
 
-# Ensure correct SQLAlchemy driver prefix
-if db_url.startswith('postgresql://'):
-    db_url = 'postgresql+psycopg2://' + db_url[len('postgresql://'):]
-elif db_url.startswith('postgres://'):
-    db_url = 'postgresql+psycopg2://' + db_url[len('postgres://'):]
+# Normalize postgres:// -> postgresql://
+if db_url.startswith('postgres://'):
+    db_url = 'postgresql://' + db_url[len('postgres://'):]
 
 masked = db_url.split('@')[-1] if '@' in db_url else db_url
 print(f"DB URL host/db: {masked}")
