@@ -70,11 +70,23 @@ except Exception as e:
 config = f"""import os
 
 SQLALCHEMY_DATABASE_URI = "{superset_db_url}"
-SECRET_KEY = "{sk}"
+SECRET_KEY = os.environ['SUPERSET_SECRET_KEY']
 
 WTF_CSRF_ENABLED = False
 ENABLE_CORS = True
 HTTP_HEADERS = {{}}
+
+# Explicit in-memory cache — no Redis required
+_CACHE = {{'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300}}
+CACHE_CONFIG = _CACHE
+DATA_CACHE_CONFIG = _CACHE
+FILTER_STATE_CACHE_CONFIG = _CACHE
+EXPLORE_FORM_DATA_CACHE_CONFIG = _CACHE
+THUMBNAIL_CACHE_CONFIG = _CACHE
+
+RATELIMIT_STORAGE_URI = "memory://"
+
+SQLALCHEMY_ENGINE_OPTIONS = {{'pool_pre_ping': True, 'pool_recycle': 300}}
 """
 
 with open('/app/pythonpath/superset_config.py', 'w') as f:
@@ -106,10 +118,7 @@ exec gunicorn \
     --workers 1 \
     --threads 4 \
     --worker-class gthread \
-    --preload \
     --timeout 120 \
-    --max-requests 100 \
-    --max-requests-jitter 20 \
     --log-level info \
     --access-logfile - \
     --error-logfile - \
