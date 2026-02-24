@@ -9,7 +9,8 @@ url = os.environ["DATABASE_URL"]
 url = url.replace("postgres://", "postgresql://", 1)
 url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
-our_revs = ["b589e261f68f", "a1c3e9f72b44", "c7f2a1d8e345"]
+HEAD = "c7f2a1d8e345"  # only the current head goes in the version table
+all_revs = ["b589e261f68f", "a1c3e9f72b44", "c7f2a1d8e345"]
 
 engine = create_engine(url)
 with engine.begin() as conn:
@@ -21,12 +22,16 @@ with engine.begin() as conn:
         )
     """))
 
-    # Seed our revisions (no-op if already present)
-    for rev in our_revs:
-        conn.execute(
-            text("INSERT INTO tqc_alembic_version (version_num) VALUES (:r) ON CONFLICT DO NOTHING"),
-            {"r": rev},
-        )
+    # Remove stale intermediate revisions left by a previous bad seed
+    for rev in all_revs:
+        if rev != HEAD:
+            conn.execute(text("DELETE FROM tqc_alembic_version WHERE version_num = :r"), {"r": rev})
+
+    # Ensure only HEAD is present
+    conn.execute(
+        text("INSERT INTO tqc_alembic_version (version_num) VALUES (:r) ON CONFLICT DO NOTHING"),
+        {"r": HEAD},
+    )
 
     # Remove our revisions from alembic_version only if that table exists
     av_exists = conn.execute(text("""
@@ -37,7 +42,7 @@ with engine.begin() as conn:
     """)).scalar()
 
     if av_exists:
-        for rev in our_revs:
+        for rev in all_revs:
             conn.execute(
                 text("DELETE FROM alembic_version WHERE version_num = :r"),
                 {"r": rev},
