@@ -44,9 +44,8 @@ print(f"DB URL host/db: {masked}")
 # Create dedicated 'superset' schema so alembic_version stays separate from our app's
 print("Creating 'superset' schema if not exists...")
 engine = create_engine(db_url)
-with engine.connect() as conn:
+with engine.begin() as conn:
     conn.execute(text("CREATE SCHEMA IF NOT EXISTS superset"))
-    conn.commit()
 engine.dispose()
 print("Schema ready.")
 
