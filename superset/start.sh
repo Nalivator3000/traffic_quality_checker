@@ -49,21 +49,23 @@ print(f"DB host: {host}:{port}/{main_db}")
 # Create a dedicated 'superset_db' database so Superset's alembic_version
 # is fully isolated from our FastAPI app's database. No shared tables at all.
 print("Ensuring 'superset_db' database exists...")
-conn = psycopg2.connect(host=host, port=port, user=user, password=password, dbname=main_db)
-conn.autocommit = True  # CREATE DATABASE requires autocommit
-cur = conn.cursor()
-cur.execute("SELECT 1 FROM pg_database WHERE datname = 'superset_db'")
-if not cur.fetchone():
-    cur.execute("CREATE DATABASE superset_db")
-    print("Created 'superset_db'.")
-else:
-    print("'superset_db' already exists.")
-cur.close()
-conn.close()
-
-# Build Superset-specific URL (same server, dedicated database)
 superset_db_url = urllib.parse.urlunparse(p._replace(path='/superset_db', query=''))
-print(f"Superset DB URL: {host}:{port}/superset_db")
+try:
+    conn = psycopg2.connect(host=host, port=port, user=user, password=password, dbname=main_db)
+    conn.autocommit = True  # CREATE DATABASE requires autocommit
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM pg_database WHERE datname = 'superset_db'")
+    if not cur.fetchone():
+        cur.execute("CREATE DATABASE superset_db")
+        print("Created 'superset_db'.")
+    else:
+        print("'superset_db' already exists.")
+    cur.close()
+    conn.close()
+    print(f"Superset will use: {host}:{port}/superset_db")
+except Exception as e:
+    print(f"WARNING: Could not create superset_db ({e}), falling back to main db")
+    superset_db_url = urllib.parse.urlunparse(p._replace(query=''))
 
 config = f"""import os
 
