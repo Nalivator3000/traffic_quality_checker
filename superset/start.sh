@@ -62,28 +62,6 @@ print("superset_config.py written OK")
 PYEOF
 
 echo ""
-echo "--- Testing DB Connection ---"
-/app/.venv/bin/python3 << 'PYEOF'
-import os
-from sqlalchemy import create_engine, text
-
-db_url = os.environ['DATABASE_URL']
-if db_url.startswith('postgresql://'):
-    db_url = 'postgresql+psycopg2://' + db_url[len('postgresql://'):]
-elif db_url.startswith('postgres://'):
-    db_url = 'postgresql+psycopg2://' + db_url[len('postgres://'):]
-
-try:
-    engine = create_engine(db_url, connect_args={"connect_timeout": 10})
-    with engine.connect() as conn:
-        result = conn.execute(text('SELECT version()'))
-        print(f"DB OK: {result.scalar()[:50]}")
-except Exception as e:
-    print(f"DB CONNECTION FAILED: {e}")
-    import sys; sys.exit(1)
-PYEOF
-
-echo ""
 echo "--- superset db upgrade ---"
 superset db upgrade
 
