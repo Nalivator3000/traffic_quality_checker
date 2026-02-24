@@ -35,9 +35,13 @@ THUMBNAIL_CACHE_CONFIG = _CACHE
 
 RATELIMIT_STORAGE_URI = "memory://"
 SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True, 'pool_recycle': 300}
+TALISMAN_ENABLED = False
 PYCFG
 
 echo "superset_config.py written"
+
+echo "=== /app/gunicorn.conf.py ==="
+cat /app/gunicorn.conf.py 2>/dev/null || echo "(not found)"
 
 echo "=== superset db upgrade ==="
 superset db upgrade
@@ -56,6 +60,7 @@ superset init
 echo "=== Starting gunicorn on 0.0.0.0:${PORT:-8088} ==="
 exec gunicorn \
     --bind "[::]:${PORT:-8088}" \
+    --forwarded-allow-ips "*" \
     --workers 1 \
     --threads 4 \
     --worker-class gthread \
