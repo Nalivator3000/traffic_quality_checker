@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "alembic upgrade head && uvicorn app.api.main:app --host 0.0.0.0 --port $PORT"
+startCommand = "python scripts/migrate_version_table.py && alembic upgrade head && uvicorn app.api.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "on_failure"
