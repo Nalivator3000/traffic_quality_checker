@@ -103,8 +103,12 @@ echo ""
 echo "--- Starting gunicorn on 0.0.0.0:${PORT} ---"
 exec gunicorn \
     --bind "0.0.0.0:${PORT:-8088}" \
-    --workers 2 \
+    --workers 1 \
+    --threads 4 \
+    --worker-class gthread \
     --timeout 120 \
+    --max-requests 100 \
+    --max-requests-jitter 20 \
     --log-level info \
     --access-logfile - \
     --error-logfile - \
