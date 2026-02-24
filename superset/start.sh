@@ -55,7 +55,7 @@ SQLALCHEMY_DATABASE_URI = "{db_url}"
 
 # Use dedicated schema so Superset's alembic_version doesn't collide with the app's
 SQLALCHEMY_ENGINE_OPTIONS = {{
-    "connect_args": {{"options": "-csearch_path=superset,public"}}
+    "connect_args": {{"options": "-csearch_path=superset"}}
 }}
 
 SECRET_KEY = "{sk}"
