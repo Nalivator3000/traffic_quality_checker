@@ -59,12 +59,12 @@ superset init
 
 echo "=== Starting gunicorn on 0.0.0.0:${PORT:-8088} ==="
 exec gunicorn \
-    --bind "[::]:${PORT:-8088}" \
-    --forwarded-allow-ips "*" \
+    --bind "0.0.0.0:${PORT:-8088}" \
     --workers 1 \
-    --threads 4 \
-    --worker-class gthread \
+    --worker-class gevent \
     --timeout 120 \
+    --limit-request-line 0 \
+    --limit-request-field_size 0 \
     --log-level debug \
     --access-logfile - \
     --error-logfile - \
