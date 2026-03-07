@@ -5,7 +5,7 @@ COPY start.sh /start.sh
 RUN chmod +x /start.sh && \
     mkdir -p /app/pythonpath && \
     chown -R superset:superset /app/pythonpath && \
-    uv pip install --python /app/.venv psycopg2-binary
+    uv pip install --python /app/.venv psycopg2-binary gevent
 USER superset
 
 ENTRYPOINT ["/start.sh"]
