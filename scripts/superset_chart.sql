@@ -62,28 +62,33 @@ scoring AS (
     SELECT
         webmaster,
         -- 8-дневное окно
-        SUM(CASE WHEN age_days BETWEEN 0 AND 8 THEN leads     ELSE 0 END) AS window_leads_8d,
-        SUM(CASE WHEN age_days BETWEEN 0 AND 8 THEN bought_out ELSE 0 END)::float AS num_8d,
+        -- Score = Σ(leads_d × actual_rate_d) / Σ(leads_d × benchmark_d)
+        -- actual_rate_d = bought_out_d / approved_d  (выкуп среди подтверждённых)
+        SUM(CASE WHEN age_days BETWEEN 0 AND 8 THEN leads ELSE 0 END) AS window_leads_8d,
+        SUM(CASE WHEN age_days BETWEEN 0 AND 8 AND approved > 0
+            THEN leads * bought_out::float / approved ELSE 0 END) AS num_8d,
         SUM(CASE WHEN age_days BETWEEN 0 AND 8 THEN
-            approved * CASE GREATEST(1, age_days)
+            leads * CASE GREATEST(1, age_days)
                 WHEN 1 THEN 0.40 WHEN 2 THEN 0.45 WHEN 3 THEN 0.55
                 WHEN 4 THEN 0.60 WHEN 5 THEN 0.65 WHEN 6 THEN 0.67
                 WHEN 7 THEN 0.72 WHEN 8 THEN 0.75
             END
         ELSE 0 END)::float AS den_8d,
         -- 3-дневное окно (для trigger_3d — buyout-компонент)
-        SUM(CASE WHEN age_days BETWEEN 0 AND 2 THEN leads     ELSE 0 END) AS window_leads_3d,
-        SUM(CASE WHEN age_days BETWEEN 0 AND 2 THEN bought_out ELSE 0 END)::float AS num_3d,
+        SUM(CASE WHEN age_days BETWEEN 0 AND 2 THEN leads ELSE 0 END) AS window_leads_3d,
+        SUM(CASE WHEN age_days BETWEEN 0 AND 2 AND approved > 0
+            THEN leads * bought_out::float / approved ELSE 0 END) AS num_3d,
         SUM(CASE WHEN age_days BETWEEN 0 AND 2 THEN
-            approved * CASE GREATEST(1, age_days)
+            leads * CASE GREATEST(1, age_days)
                 WHEN 1 THEN 0.40 WHEN 2 THEN 0.45 ELSE 0.40
             END
         ELSE 0 END)::float AS den_3d,
-        -- 30-дневное окно (лиды старше 8 дней → бенчмарк фиксирован на 65%)
-        SUM(CASE WHEN age_days BETWEEN 0 AND 30 THEN leads     ELSE 0 END) AS window_leads_30d,
-        SUM(CASE WHEN age_days BETWEEN 0 AND 30 THEN bought_out ELSE 0 END)::float AS num_30d,
+        -- 30-дневное окно (лиды старше 8 дней → бенчмарк фиксирован на 75%)
+        SUM(CASE WHEN age_days BETWEEN 0 AND 30 THEN leads ELSE 0 END) AS window_leads_30d,
+        SUM(CASE WHEN age_days BETWEEN 0 AND 30 AND approved > 0
+            THEN leads * bought_out::float / approved ELSE 0 END) AS num_30d,
         SUM(CASE WHEN age_days BETWEEN 0 AND 30 THEN
-            approved * CASE LEAST(GREATEST(1, age_days), 8)
+            leads * CASE LEAST(GREATEST(1, age_days), 8)
                 WHEN 1 THEN 0.40 WHEN 2 THEN 0.45 WHEN 3 THEN 0.55
                 WHEN 4 THEN 0.60 WHEN 5 THEN 0.65 WHEN 6 THEN 0.67
                 WHEN 7 THEN 0.72 WHEN 8 THEN 0.75
