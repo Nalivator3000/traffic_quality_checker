@@ -54,6 +54,14 @@ superset fab create-admin \
     --email admin@admin.com \
     --password "${SUPERSET_ADMIN_PASSWORD:-admin}" 2>&1 || true
 
+echo "=== Creating dima user ==="
+superset fab create-admin \
+    --username dima \
+    --firstname Dima \
+    --lastname Admin \
+    --email dima@admin.com \
+    --password "${SUPERSET_DIMA_PASSWORD:-admin}" 2>&1 || true
+
 echo "=== superset init ==="
 superset init
 
