@@ -1,6 +1,14 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 from app.api.analysis import router as analysis_router
 from app.api.leads import router as leads_router
